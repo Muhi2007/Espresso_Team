@@ -1,0 +1,27 @@
+{
+  "types": [
+    "henley shirt",
+    "oxford shirt",
+    "polo shirt",
+    "t-shirt",
+    "dress shirt",
+    "button-up shirt",
+    "flannel shirt",
+    "tank top",
+    "sweatshirt",
+    "hoodie"
+  ],
+  "colors": [
+    "red",
+    "blue",
+    "green",
+    "black",
+    "white",
+    "gray",
+    "yellow",
+    "purple",
+    "orange",
+    "pink",
+    "brown"
+  ]
+}
