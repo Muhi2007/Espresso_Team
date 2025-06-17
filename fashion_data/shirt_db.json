@@ -1,15 +1,20 @@
 {
   "types": [
-    "henley shirt",
-    "oxford shirt",
-    "polo shirt",
+    "oxford_shirt",
+    "polo_shirt",
     "t-shirt",
-    "dress shirt",
-    "button-up shirt",
-    "flannel shirt",
-    "tank top",
+    "dress_shirt",
+    "button-up_shirt",
+    "flannel_shirt",
+    "tank_top",
     "sweatshirt",
-    "hoodie"
+    "hoodie",
+    "long_sleeve_tshirt",
+    "trousers",
+    "sweater",
+    "blouse",
+    "jeans",
+    "cargo_pants"
   ],
   "colors": [
     "red",
@@ -23,5 +28,23 @@
     "orange",
     "pink",
     "brown"
-  ]
+  ],
+  "shirts": {
+    "044dd85e-e507-4cde-8786-9f428bd14ecd": {
+      "type": "henley_shirt",
+      "color": "red"
+    },
+    "b6bff624-8c37-4690-ae20-75b982a73d55": {
+      "type": "henley_shirt",
+      "color": "gray"
+    },
+    "440712d6-bcb5-499b-84b6-63054f231528": {
+      "type": "henley_shirt",
+      "color": "brown"
+    },
+    "f3c3b0d7-b189-4ba6-a986-dae9a01c469a": {
+      "type": "henley_shirt",
+      "color": "black"
+    }
+  }
 }
