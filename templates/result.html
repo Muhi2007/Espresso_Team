@@ -7,6 +7,18 @@
   <img src="{{ img_url }}" width="300"><br><br>
   <p><strong>Detected Clothing Type:</strong> {{ clothing_type }}</p>
   <p><strong>Detected Clothing Color:</strong> {{ clothing_color }}</p>
+  
+  <h3>Matching Outfits</h3>
+  {% if outfits %}
+    <ul>
+      {% for outfit in outfits %}
+        <img src = "{{ outfit }}" width="300"><br><br>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No matching outfits found.</p>
+  {% endif %}
+
   <a href="/">Try Another</a>
 </body>
 </html>

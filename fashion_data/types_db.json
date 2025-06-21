@@ -1,0 +1,62 @@
+  {
+    "types": {
+      "shirt":[
+        "t-shirt",
+        "dress shirt",
+        "polo shirt",
+        "tank top",
+        "long sleeve shirt",
+        "sweatshirt",
+        "hoodie",
+        "blouse",
+        "button-up shirt"
+      ],
+      "pants":[
+        "jeans",
+        "trousers",
+        "shorts",
+        "leggings",
+        "cargo pants",
+        "chinos",
+        "sweatpants",
+        "joggers",
+        "culottes"
+      ],
+      "shoes":[
+        "sneakers",
+        "boots",
+        "sandals",
+        "loafers",
+        "heels",
+        "flats",
+        "oxfords",
+        "slippers",
+        "moccasins"
+      ]
+    },
+  "colors": [
+    "red",
+    "blue",
+    "green",
+    "black",
+    "white",
+    "gray",
+    "yellow",
+    "purple",
+    "orange",
+    "pink",
+    "brown"
+  ],
+  "materials": [
+    "cotton",
+    "polyester",
+    "wool",
+    "linen",
+    "silk",
+    "denim",
+    "spandex",
+    "nylon",
+    "rayon",
+    "acrylic"
+  ]
+}

@@ -6,6 +6,10 @@ from PIL import Image
 import requests
 from io import BytesIO
 from urllib.parse import urlparse, parse_qs, unquote
+from sklearn.metrics.pairwise import cosine_similarity
+from model.shirt_db_utils import data, all_data
+import numpy as np
+
 
 
 # Load CLIP model and preprocessing globally
@@ -46,9 +50,15 @@ def extract_image_url_from_temulink(full_url):
         print(f"[ERROR] Could not extract image URL: {e}")
     return None
 
-def classify_image_with_clip(image: Image.Image, prompt_list: list) -> str:
+def classify_image_with_clip(image: Image.Image, prompt_list: list, img_name = None) -> str:
     # Preprocess image
     image_input = preprocess(image).unsqueeze(0).to(device)
+
+    if img_name:
+        lst = []
+        for type in prompt_list:
+            lst.append(f"{type} {img_name}")
+        prompt_list = lst
 
     # Get image features
     with torch.no_grad():
@@ -67,5 +77,55 @@ def classify_image_with_clip(image: Image.Image, prompt_list: list) -> str:
     # Get best matching type
     best_match_idx = similarity.argmax().item()
     best_label = prompt_list[best_match_idx].strip()
+    if img_name:
+        uzunluq = len(img_name)
+        return best_label[:-uzunluq].strip()
+    else:
+        return best_label
 
-    return best_label
+def generate_complement_prompt(item_type, color, material=None):
+    prompt = f"A stylish item that complements a {color} {item_type}"
+    if material:
+        prompt += f" made of {material}"
+    return prompt
+
+def find_parent(clothing_dict, item_name):
+    for category, items in clothing_dict.items():
+        if item_name in items:
+            return category
+    return None
+
+print(find_parent(all_data['types'], data['static\\uploads\\8c42b4cf-6793-4007-b6a8-9f125270f88a.jpg']['type']))
+
+def suggest_complementary_items(input_item_path, top_k=3):
+    # 1. Generate prompt
+    input_item = data[input_item_path]
+    tip = find_parent(all_data["types"], input_item['type'])
+    print(tip)
+    prompt = generate_complement_prompt(input_item['type'], input_item['color'])
+    print(prompt)
+
+    # 2. Encode prompt using CLIP
+    with torch.no_grad():
+        text_tokens = clip.tokenize([prompt]).to(device)
+        text_embedding = clip_model.encode_text(text_tokens)
+        text_embedding = text_embedding.cpu().numpy()[0]
+
+    similarities = []
+    for item in data:
+        # Skip the same item
+        if item == input_item_path:
+            continue
+
+        # Optional: filter out same type
+        if find_parent(all_data["types"], data[item]['type']) == tip:
+            print(data[item]['type'])
+            continue
+
+        item_embedding = np.array(data[item]['embedding'])
+        sim = cosine_similarity([text_embedding], [item_embedding])[0][0]
+        similarities.append((sim, item))
+
+    # 4. Sort and return
+    similarities.sort(reverse=True)
+    return [item for _, item in similarities[:top_k]]
