@@ -1,6 +1,6 @@
   {
     "types": {
-      "shirt":[
+      "shirts":[
         "t-shirt",
         "dress shirt",
         "polo shirt",
@@ -32,6 +32,17 @@
         "oxfords",
         "slippers",
         "moccasins"
+      ],
+      "accessories":[
+        "belt",
+        "hat",
+        "scarf",
+        "watch",
+        "sunglasses",
+        "gloves",
+        "necklace",
+        "bracelet",
+        "earrings"
       ]
     },
   "colors": [
@@ -58,5 +69,16 @@
     "nylon",
     "rayon",
     "acrylic"
+  ],
+  "comments": [
+    "This is a great shirt!",
+    "I love these pants.",
+    "These shoes are very comfortable.",
+    "The color of this item is vibrant.",
+    "The material feels high quality.",
+    "Perfect for casual wear.",
+    "I would recommend this to my friends.",
+    "The fit is just right.",
+    "Very stylish and trendy."
   ]
 }

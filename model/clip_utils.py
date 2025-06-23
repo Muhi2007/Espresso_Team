@@ -7,7 +7,7 @@ import requests
 from io import BytesIO
 from urllib.parse import urlparse, parse_qs, unquote
 from sklearn.metrics.pairwise import cosine_similarity
-from model.shirt_db_utils import data, all_data
+from model.shirt_db_utils import all_data, load_shirts
 import numpy as np
 
 
@@ -89,21 +89,19 @@ def generate_complement_prompt(item_type, color, material=None):
         prompt += f" made of {material}"
     return prompt
 
-def find_parent(clothing_dict, item_name):
-    for category, items in clothing_dict.items():
+def find_parent(item_name):
+    for category, items in all_data["types"].items():
         if item_name in items:
             return category
     return None
 
-print(find_parent(all_data['types'], data['static\\uploads\\8c42b4cf-6793-4007-b6a8-9f125270f88a.jpg']['type']))
-
-def suggest_complementary_items(input_item_path, top_k=3):
+def suggest_complementary_items(input_item_path, top_k, category):
     # 1. Generate prompt
+    data = load_shirts()
+
     input_item = data[input_item_path]
-    tip = find_parent(all_data["types"], input_item['type'])
-    print(tip)
-    prompt = generate_complement_prompt(input_item['type'], input_item['color'])
-    print(prompt)
+    prompt = generate_complement_prompt(input_item['type'], input_item['color'], input_item['material'])
+
 
     # 2. Encode prompt using CLIP
     with torch.no_grad():
@@ -117,10 +115,9 @@ def suggest_complementary_items(input_item_path, top_k=3):
         if item == input_item_path:
             continue
 
-        # Optional: filter out same type
-        if find_parent(all_data["types"], data[item]['type']) == tip:
-            print(data[item]['type'])
-            continue
+        # Filter out same type
+        if find_parent(data[item]["type"]) != category:
+           continue
 
         item_embedding = np.array(data[item]['embedding'])
         sim = cosine_similarity([text_embedding], [item_embedding])[0][0]
@@ -128,4 +125,11 @@ def suggest_complementary_items(input_item_path, top_k=3):
 
     # 4. Sort and return
     similarities.sort(reverse=True)
+
+    if len(similarities) < top_k:
+        top_k = len(similarities)
+
+    if top_k <= 0:
+        print("[ERROR] Top K must be greater than 0")
+        return []
     return [item for _, item in similarities[:top_k]]
