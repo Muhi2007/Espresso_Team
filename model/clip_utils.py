@@ -10,8 +10,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 from model.shirt_db_utils import all_data, load_shirts
 import numpy as np
 
-
-
 # Load CLIP model and preprocessing globally
 device = "cuda" if torch.cuda.is_available() else "cpu"
 clip_model, preprocess = clip.load("ViT-B/32", device=device)
@@ -51,7 +49,6 @@ def extract_image_url_from_temulink(full_url):
     return None
 
 def classify_image_with_clip(image: Image.Image, prompt_list: list, img_name = None) -> str:
-    # Preprocess image
     image_input = preprocess(image).unsqueeze(0).to(device)
 
     if img_name:
@@ -60,21 +57,17 @@ def classify_image_with_clip(image: Image.Image, prompt_list: list, img_name = N
             lst.append(f"{type} {img_name}")
         prompt_list = lst
 
-    # Get image features
     with torch.no_grad():
         image_features = clip_model.encode_image(image_input)
 
-    # Tokenize and encode text prompts
     text_tokens = clip.tokenize(prompt_list).to(device)
     with torch.no_grad():
         text_features = clip_model.encode_text(text_tokens)
 
-    # Normalize and calculate similarity
     image_features /= image_features.norm(dim=-1, keepdim=True)
     text_features /= text_features.norm(dim=-1, keepdim=True)
     similarity = (100.0 * image_features @ text_features.T).softmax(dim=-1)
 
-    # Get best matching type
     best_match_idx = similarity.argmax().item()
     best_label = prompt_list[best_match_idx].strip()
     if img_name:
@@ -83,10 +76,13 @@ def classify_image_with_clip(image: Image.Image, prompt_list: list, img_name = N
     else:
         return best_label
 
-def generate_complement_prompt(item_type, color, material=None):
+def generate_complement_prompt(item_type, color, material=None, style=None):
     prompt = f"A stylish item that complements a {color} {item_type}"
     if material:
         prompt += f" made of {material}"
+    if style:
+        prompt = prompt.replace("stylish", f"{style} style")
+    print(prompt)
     return prompt
 
 def find_parent(item_name):
@@ -95,41 +91,75 @@ def find_parent(item_name):
             return category
     return None
 
-def suggest_complementary_items(input_item_path, top_k, category):
-    # 1. Generate prompt
+def suggest_complementary_items(input_item_path, top_k, category, style):
     data = load_shirts()
+    
+    if input_item_path not in data:
+        print(f"[ERROR] Input item path not found in database: {input_item_path}")
+        return []
 
     input_item = data[input_item_path]
-    prompt = generate_complement_prompt(input_item['type'], input_item['color'], input_item['material'])
+    prompt = generate_complement_prompt(input_item['type'], input_item['color'], input_item['material'], style)
 
-
-    # 2. Encode prompt using CLIP
     with torch.no_grad():
         text_tokens = clip.tokenize([prompt]).to(device)
         text_embedding = clip_model.encode_text(text_tokens)
         text_embedding = text_embedding.cpu().numpy()[0]
 
     similarities = []
-    for item in data:
-        # Skip the same item
-        if item == input_item_path:
+    for item_path, item_details in data.items():
+        if item_path == input_item_path:
             continue
 
-        # Filter out same type
-        if find_parent(data[item]["type"]) != category:
+        if find_parent(item_details["type"]) != category:
            continue
 
-        item_embedding = np.array(data[item]['embedding'])
+        item_embedding = np.array(item_details['embedding'])
         sim = cosine_similarity([text_embedding], [item_embedding])[0][0]
-        similarities.append((sim, item))
+        similarities.append((sim, item_path))
 
-    # 4. Sort and return
     similarities.sort(reverse=True)
+    return [item for _, item in similarities[:top_k]]
 
-    if len(similarities) < top_k:
-        top_k = len(similarities)
+def find_most_similar_image(uploaded_image_embedding, data):
+    """Finds the most similar image in the database to the uploaded one."""
+    if uploaded_image_embedding is None:
+        return None
+        
+    uploaded_embedding_np = uploaded_image_embedding.cpu().numpy()
+    
+    max_similarity = -1
+    best_match_path = None
 
-    if top_k <= 0:
-        print("[ERROR] Top K must be greater than 0")
-        return []
+    for item_path, item_details in data.items():
+        db_embedding = np.array(item_details['embedding'])
+        sim = cosine_similarity(uploaded_embedding_np, [db_embedding])[0][0]
+        
+        if sim > max_similarity:
+            max_similarity = sim
+            best_match_path = item_path
+            
+    return best_match_path
+
+def suggest_items_from_prompt(prompt, top_k, category, data):
+    """Suggests items from the database based on a text prompt."""
+    with torch.no_grad():
+        text_tokens = clip.tokenize([prompt]).to(device)
+        text_embedding = clip_model.encode_text(text_tokens)
+        text_embedding /= text_embedding.norm(dim=-1, keepdim=True)
+        text_embedding_np = text_embedding.cpu().numpy()
+
+    similarities = []
+    for item_path, item_details in data.items():
+        if find_parent(item_details.get("type")) != category:
+            continue
+            
+        image_embedding = np.array(item_details['embedding']).reshape(1, -1)
+        # Assuming embeddings are already normalized. If not, normalize them here.
+        
+        sim = cosine_similarity(text_embedding_np, image_embedding)[0][0]
+        similarities.append((sim, item_path))
+        
+    similarities.sort(reverse=True, key=lambda x: x[0])
+    
     return [item for _, item in similarities[:top_k]]

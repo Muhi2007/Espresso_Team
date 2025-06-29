@@ -1,44 +1,70 @@
-<!-- templates/form.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>CLIP Outfit Matcher</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: 'Outfit', sans-serif;
       background: linear-gradient(135deg, #0d1117, #1c1f2b);
-      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
       min-height: 100vh;
       color: white;
     }
     .container {
-      display: flex;
-      flex-direction: column;
       max-width: 1000px;
       width: 90%;
       margin: auto;
       padding-top: 50px;
     }
-    .left-panel {
+    .panel {
       background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(16px);
       border-radius: 20px;
       padding: 40px;
-      margin-bottom: 40px;
     }
     h2 {
       font-size: 34px;
+      font-weight: 700;
       background: linear-gradient(to right, #fbbf24, #fef08a);
       -webkit-background-clip: text;
       background-clip: text;
       -webkit-text-fill-color: transparent;
       margin-bottom: 25px;
     }
-    input[type="text"], select, input[type="range"] {
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      margin-bottom: 30px;
+    }
+    .tab-button {
+      padding: 12px 20px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: #a0aec0;
+      font-size: 16px;
+      font-weight: 600;
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+    }
+    .tab-button.active {
+      color: #fbbf24;
+      border-bottom-color: #fbbf24;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    input[type="text"], input[type="file"], select {
+      width: 100%;
       padding: 16px 18px;
       font-size: 16px;
       border: none;
@@ -46,10 +72,16 @@
       margin-bottom: 20px;
       background: rgba(255, 255, 255, 0.15);
       color: #fbbf24;
-      width: 100%;
+    }
+    input::placeholder {
+      color: rgba(251, 191, 36, 0.6);
+    }
+    input[type="file"] {
+      color: #a0aec0;
+      padding: 12px 18px;
     }
     button {
-      padding: 14px 30px;
+      padding: 16px 30px;
       background-color: #fbbf24;
       border: none;
       border-radius: 14px;
@@ -57,64 +89,48 @@
       font-weight: 600;
       font-size: 16px;
       cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
     }
     .loader {
       display: none;
       font-size: 14px;
       color: #ddd;
       margin-top: 10px;
-    }
-    .results-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .results-header select {
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      border-radius: 12px;
-      padding: 8px 14px;
-      color: #fbbf24;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 24px;
-    }
-    .card {
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(10px);
-      padding: 16px;
-      border-radius: 16px;
       text-align: center;
-    }
-    .card img {
-      width: 100%;
-      height: 200px;
-      object-fit: cover;
-      border-radius: 12px;
-    }
-    .name {
-      margin-top: 12px;
-      font-size: 16px;
-      font-weight: bold;
-    }
-    .price, .rating {
-      margin-top: 6px;
-      font-size: 14px;
-      color: #ddd;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="left-panel">
-      <h2>Paste a Temu Product Link</h2>
-      <form method="POST" action="/analyze">
-        <input type="text" name="image_url" placeholder="https://temu.com/..." required>
-        <select name="category" id="category" required>
-          <option value="">Select clothing type</option>
+    <div class="panel">
+      <h2>Find Your Perfect Outfit</h2>
+      
+      <div class="tabs">
+        <button class="tab-button active" onclick="openTab(event, 'link-tab')">🔗 From Link</button>
+        <button class="tab-button" onclick="openTab(event, 'image-tab')">🖼️ From Image</button>
+        <button class="tab-button" onclick="openTab(event, 'prompt-tab')">✏️ From Prompt</button>
+      </div>
+
+      <form method="POST" action="/get_suggestions" enctype="multipart/form-data">
+        <div id="link-tab" class="tab-content active">
+          <input type="text" name="image_url" placeholder="https://temu.com/...">
+        </div>
+        
+        <div id="image-tab" class="tab-content">
+          <input type="file" name="image_file" accept="image/*">
+        </div>
+
+        <div id="prompt-tab" class="tab-content">
+          <input type="text" name="prompt_text" placeholder="e.g., a stylish blue denim jacket">
+        </div>
+        
+        <!-- Hidden input to identify the submission type -->
+        <input type="hidden" name="input_type" id="input_type" value="link">
+
+        <!-- Common fields -->
+        <select name="category" required>
+          <option value="">Select clothing type for suggestions: </option>
           <option value="pants">Pants</option>
           <option value="shirts">Shirts</option>
           <option value="jackets">Jackets</option>
@@ -122,22 +138,51 @@
           <option value="accessories">Accessories</option>
           <option value="skirts">Skirts</option>
         </select>
+
+        <select id="style" name="style">
+          <option value=""> Select clothing style: </option>
+          <option value="streetwear">Streetwear</option>
+          <option value="oldmoney">Old Money</option>
+          <option value="casual">Casual</option>
+          <option value="formal">Formal</option>
+          <option value="gothic">Gothic</option>
+          <option value="sporty">Sporty</option>
+          <option value="vintage">Vintage</option>
+          <option value="boho">Boho</option>
+          <option value="minimalist">Minimalist</option>
+          <option value="y2k">Y2K</option>
+        </select>
+        
         <label for="count">Number of suggestions: <span id="countLabel">3</span></label>
         <input type="range" name="count" id="count" min="1" max="10" value="3" oninput="countLabel.innerText = this.value">
-        <button type="submit">🔍 Analyze</button>
+        
+        <button type="submit">🔍 Find Matches</button>
         <div class="loader" id="loader">Analyzing... Please wait</div>
       </form>
     </div>
-
-    <div class="results-section" id="resultsSection" style="display:none;">
-      <div class="results-header">
-        <h2>Matching Results</h2>
-        <select id="filter" onchange="applyFilter()">
-          <option value="none">No Filter</option>
-          <option value="price">Sort by Price</option>
-          <option value="rating">Sort by Rating</option>
-        </select>
-      </div>
-      <div class="grid" id="resultsContainer"></div>
-    </div>
   </div>
+
+  <script>
+    function openTab(evt, tabName) {
+      // Hide all tab contents
+      let tabcontent = document.getElementsByClassName("tab-content");
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
+      }
+
+      // Deactivate all tab buttons
+      let tablinks = document.getElementsByClassName("tab-button");
+      for (let i = 0; i < tablinks.length; i++) {
+        tablinks[i].className = tablinks[i].className.replace(" active", "");
+      }
+
+      // Show the current tab and activate the button
+      document.getElementById(tabName).style.display = "block";
+      evt.currentTarget.className += " active";
+
+      // Update the hidden input value
+      document.getElementById('input_type').value = tabName.replace('-tab', '');
+    }
+  </script>
+</body>
+</html>

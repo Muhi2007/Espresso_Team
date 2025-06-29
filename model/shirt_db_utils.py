@@ -1,5 +1,6 @@
 import json
 from filelock import FileLock
+import os
 
 DB_PATH = "fashion_data\\shirt_db.json"
 LOCK_PATH = "fashion_data\\shirt_db.json.lock"
@@ -26,22 +27,34 @@ def load():
 
 types_lst = load()
 
-def update_shirt_types(new_type):
-    if new_type not in all_data["types"]:
-        all_data["types"].append(new_type)
+# --- User Management ---
+USERS_DB_PATH = "user_data\\users.json"
+USERS_DB_LOCK_PATH = "user_data\\users.json.lock"
 
-    with open(DB_PATH, "w") as f:
-        json.dump(all_data, f, indent=2)
 
-def update_shirt_color(new_color):
-    if new_color not in all_data["colors"]:
-        all_data["colors"].append(new_color)
+def load_users():
+    """Loads users from the JSON database file, handling empty files."""
+    if not os.path.exists(USERS_DB_PATH):
+        return {}
+    with FileLock(USERS_DB_LOCK_PATH):
+        if os.path.getsize(USERS_DB_PATH) == 0:
+            return {}
+        with open(USERS_DB_PATH, "r") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
 
-    with open(DB_PATH, "w") as f:
-        json.dump(all_data, f, indent=2)
+def save_users(users):
+    """Saves the users dictionary to the JSON database file."""
+    with FileLock(USERS_DB_LOCK_PATH):
+        with open(USERS_DB_PATH, "w") as f:
+            json.dump(users, f, indent=4)
+
 
 def make_html_url(standart_url):
     val = "/" + standart_url.replace("\\", "/")
+    print(val)
     return val
 
 def update_shirt(name, new_type, new_color, new_material, new_link, new_embedding, image):
