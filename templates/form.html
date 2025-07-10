@@ -9,12 +9,13 @@
     body {
       margin: 0;
       font-family: 'Outfit', sans-serif;
-      background: linear-gradient(135deg, #0d1117, #1c1f2b);
+      background: #D9D9D9; /* Matching login.html background */
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
-      color: white;
+      color: #1A1A1A; /* Set base text color here */
+      position: relative; /* Needed for absolute positioning of settings button */
     }
     .container {
       max-width: 1000px;
@@ -23,39 +24,44 @@
       padding-top: 50px;
     }
     .panel {
-      background: rgba(255, 255, 255, 0.05);
+      background: #F4F4F4; /* Matching login.html form-container background */
       backdrop-filter: blur(16px);
       border-radius: 20px;
       padding: 40px;
+      border: 1px solid #1A1A1A; /* Matching login.html form-container border */
     }
     h2 {
       font-size: 34px;
       font-weight: 700;
-      background: linear-gradient(to right, #fbbf24, #fef08a);
+      background: #1A1A1A;
       -webkit-background-clip: text;
       background-clip: text;
-      -webkit-text-fill-color: transparent;
+      -webkit-text-fill-color: transparent; /* Text color is transparent to show background */
       margin-bottom: 25px;
+      text-align: center;
     }
     .tabs {
       display: flex;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      border-bottom: 1px solid #1A1A1A;
       margin-bottom: 30px;
+      justify-content: center;
     }
     .tab-button {
-      padding: 12px 20px;
+      padding: 12px;
       cursor: pointer;
       background: none;
       border: none;
-      color: #a0aec0;
+      color: #666666; /* Specific color, not inheriting */
       font-size: 16px;
       font-weight: 600;
       border-bottom: 3px solid transparent;
       transition: all 0.3s ease;
+      flex-grow: 1;
+      text-align: center;
     }
     .tab-button.active {
-      color: #fbbf24;
-      border-bottom-color: #fbbf24;
+      color: #1A1A1A; /* Specific color, overriding default */
+      border-bottom-color: #666666;
     }
     .tab-content {
       display: none;
@@ -63,47 +69,212 @@
     .tab-content.active {
       display: block;
     }
-    input[type="text"], input[type="file"], select {
+    input[type="text"], select, input[type="range"] {
       width: 100%;
       padding: 16px 18px;
       font-size: 16px;
       border: none;
       border-radius: 14px;
       margin-bottom: 20px;
-      background: rgba(255, 255, 255, 0.15);
-      color: #fbbf24;
+      background: #E6E6E6;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+    }
+    select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231A1A1A'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 15px center;
+        background-size: 18px;
+        padding-right: 40px;
+    }
+    input[type="range"] {
+        padding: 0;
+        height: 20px;
     }
     input::placeholder {
-      color: rgba(251, 191, 36, 0.6);
+      color: #1A1A1A; /* Keep explicit for placeholder, as it's not directly inherited */
+    }
+    label {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    .custom-file-upload {
+        display: inline-block;
+        width: 100%;
+        padding: 16px 18px;
+        font-size: 16px;
+        border: none;
+        border-radius: 14px;
+        margin-bottom: 20px;
+        background: #E6E6E6;
+        cursor: pointer;
+        text-align: center;
+        transition: background 0.3s;
+    }
+    .custom-file-upload:hover {
+        background: #666666;
     }
     input[type="file"] {
-      color: #a0aec0;
-      padding: 12px 18px;
+        display: none;
     }
-    button {
+    button[type="submit"] {
       padding: 16px 30px;
-      background-color: #fbbf24;
+      background-color: #E6E6E6;
       border: none;
       border-radius: 14px;
-      color: #1a202c;
       font-weight: 600;
       font-size: 16px;
       cursor: pointer;
       width: 100%;
       margin-top: 10px;
+      transition: background-color 0.3s ease;
+    }
+    button[type="submit"]:hover {
+      background-color: #666666;
     }
     .loader {
       display: none;
       font-size: 14px;
-      color: #ddd;
       margin-top: 10px;
       text-align: center;
+    }
+    /* Flash message styles copied from login.html */
+    .flash-message {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 600;
+    }
+    .flash-success {
+        background-color: #E6E6E6;
+        color: #00CE43; /* Specific color */
+    }
+    .flash-error {
+        background-color: #E6E6E6;
+        color: #FF3B3B; /* Specific color */
+    }
+
+    /* --- Settings Button Styles --- */
+    .user-settings-container {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 17% ;
+      min-width: 200px; 
+      height: 60px;
+      background: #F4F4F4;
+      border: 1px solid #1A1A1A;
+      border-radius: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      overflow: hidden;
+      transition: all 0.3s ease-in-out;
+      padding: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      z-index: 1000;
+    }
+
+    .user-settings-container.expanded {
+      height: 220px;
+      border-radius: 20px;
+      width: 17%;
+    }
+
+    .user-info-button {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      width: 100%;
+      height: 40px;
+      padding-right: 10px;
+    }
+
+    .user-name {
+      font-weight: 600;
+      font-size: 16px;
+      margin-right: 10px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis; /* Ensures long names are truncated */
+    }
+
+    .user-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #E6E6E6;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 24px;
+      color: #666666; /* Specific color */
+      border: 1px solid #1A1A1A;
+    }
+
+    .logout-button-container {
+      width: 100%;
+      opacity: 0;
+      transform: translateY(-10px);
+      transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+      padding: 0 10px;
+      margin-top: 10px;
+    }
+
+    .user-settings-container.expanded .logout-button-container {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .logout-button {
+      width: 100%;
+      padding: 10px 15px;
+      background-color: #E6E6E6;
+      border: none;
+      border-radius: 14px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+    }
+
+    .logout-button:hover {
+      background-color: #666666;
     }
   </style>
 </head>
 <body>
+  <!-- User Settings Button -->
+  <div class="user-settings-container" id="userSettings" onclick="toggleSettingsMenu()">
+    <div class="user-info-button">
+      <span class="user-name">{{ session.email.split('@')[0] if session.email else 'Guest' }}</span>
+      <div class="user-icon">
+        &#128100; 
+      </div>
+    </div>
+    <div class="logout-button-container">
+      <a href="{{ url_for('logout') }}" class="logout-button">Logout</a>
+    </div>
+  </div>
+
   <div class="container">
     <div class="panel">
+      <!-- Flash messages will be shown here -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="flash-message flash-{{ category }}">{{ message }}</div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
       <h2>Find Your Perfect Outfit</h2>
       
       <div class="tabs">
@@ -118,7 +289,11 @@
         </div>
         
         <div id="image-tab" class="tab-content">
-          <input type="file" name="image_file" accept="image/*">
+          <label for="image_file_input" class="custom-file-upload">
+            Choose File
+          </label>
+          <input type="file" name="image_file" id="image_file_input" accept="image/*">
+          <p id="file-name-display" style="font-size: 14px; text-align: center; color: #666666; margin-top: -10px; margin-bottom: 20px;"></p>
         </div>
 
         <div id="prompt-tab" class="tab-content">
@@ -150,7 +325,7 @@
           <option value="vintage">Vintage</option>
           <option value="boho">Boho</option>
           <option value="minimalist">Minimalist</option>
-          <option value="y2k">Y2K</option>
+          <option value="y2k">Y2k</option>
         </select>
         
         <label for="count">Number of suggestions: <span id="countLabel">3</span></label>
@@ -164,24 +339,33 @@
 
   <script>
     function openTab(evt, tabName) {
-      // Hide all tab contents
       let tabcontent = document.getElementsByClassName("tab-content");
       for (let i = 0; i < tabcontent.length; i++) {
         tabcontent[i].style.display = "none";
       }
 
-      // Deactivate all tab buttons
       let tablinks = document.getElementsByClassName("tab-button");
       for (let i = 0; i < tablinks.length; i++) {
         tablinks[i].className = tablinks[i].className.replace(" active", "");
       }
 
-      // Show the current tab and activate the button
       document.getElementById(tabName).style.display = "block";
       evt.currentTarget.className += " active";
-
-      // Update the hidden input value
       document.getElementById('input_type').value = tabName.replace('-tab', '');
+    }
+
+    document.getElementById('image_file_input').addEventListener('change', function() {
+        const fileNameDisplay = document.getElementById('file-name-display');
+        if (this.files && this.files.length > 0) {
+            fileNameDisplay.textContent = 'Selected file: ' + this.files[0].name;
+        } else {
+            fileNameDisplay.textContent = '';
+        }
+    });
+
+    function toggleSettingsMenu() {
+      const settingsContainer = document.getElementById('userSettings');
+      settingsContainer.classList.toggle('expanded');
     }
   </script>
 </body>

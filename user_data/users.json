@@ -2,5 +2,9 @@
     "alfaamfibiya@gmail.com": {
         "name": "Muhi007",
         "password": "scrypt:32768:8:1$L2sljnOkeyq3w23v$098b17916abc0ba48006da6d1ccacae75c246b0d6830b0f61357ed4d014cb00fa8996a72ab390c4e1ae15722183747b4725ae475408d64f05178c1655a9fc1dd"
+    },
+    "muhammadteymurlu07@gmail.com": {
+        "name": "Muhi",
+        "password": "scrypt:32768:8:1$kCHdwL79QTUx1FXq$94fe67f9c03e4879c5d10cc622a65bd435523fc39bb2c3a494db037f888678d19c074476e3a54212e54ceba6df49fb7a0d89cb8f6b0cd9b0d347153f5f7a096e"
     }
 }

@@ -1,0 +1,9 @@
+Flask
+filelock
+Pillow
+torch
+clip
+scikit-learn
+numpy
+SQLAlchemy
+psycopg2-binary

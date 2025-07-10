@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Item Details</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #D9D9D9; /* Matching login.html background */
+            color: #1A1A1A; /* Set base text color here */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background: #F4F4F4; /* Matching login.html form-container background */
+            backdrop-filter: blur(16px);
+            border-radius: 20px;
+            padding: 40px;
+            width: 100%;
+            max-width: 500px;
+            text-align: center;
+            border: 1px solid #1A1A1A; /* Matching login.html form-container border */
+        }
+        h2 {
+            font-size: 28px;
+            font-weight: 700;
+            background: #1A1A1A;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent; /* Text color is transparent to show background */
+            margin-bottom: 25px;
+        }
+        p {
+            /* color: #1A1A1A; -- Removed, now inherited from body */
+            margin-bottom: 20px;
+            font-size: 16px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+            /* color: #1A1A1A; -- Removed, now inherited from body */
+        }
+        input[type="number"],
+        textarea,
+        input[type="range"] {
+            width: 100%;
+            padding: 16px 18px;
+            font-size: 16px;
+            border: none;
+            border-radius: 14px;
+            background: #E6E6E6;
+            /* color: #1A1A1A; -- Removed, now inherited from body */
+            resize: vertical;
+        }
+        input[type="range"] {
+            padding: 0;
+            height: 20px;
+        }
+        input[type="number"] {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        button {
+            width: 100%;
+            padding: 16px 30px;
+            background-color: #E6E6E6;
+            border: none;
+            border-radius: 14px;
+            /* color: #1A1A1A; -- Removed, now inherited from body */
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #666666;
+        }
+        /* Flash message styles copied from login.html */
+        .flash-message {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 600;
+        }
+        .flash-success {
+            background-color: #E6E6E6;
+            color: #00CE43; /* Specific color */
+        }
+        .flash-error {
+            background-color: #E6E6E6;
+            color: #FF3B3B; /* Specific color */
+        }
+        .item-preview {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .item-preview img {
+            max-width: 150px;
+            height: auto;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>New Item Added!</h2>
+        <p>Please provide a rating and comment for the newly added item.</p>
+
+        {% if item_path %}
+        <div class="item-preview">
+            <img src="{{ item_path }}" alt="New Item">
+        </div>
+        {% endif %}
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash-message flash-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form action="{{ url_for('add_shirt_details') }}" method="POST">
+            <div class="form-group">
+                <label for="rating">Rating (0.0 - 5.0): <span id="countLabel">3.0</span></label>
+                <input type="range" name="rating" id="rating" min="0" max="5" step="0.1" value="3.0" oninput="countLabel.innerText = parseFloat(this.value).toFixed(1)">
+            </div>
+            <div class="form-group">
+                <label for="comment">Comment:</label>
+                <textarea id="comment" name="comment" rows="4" placeholder="e.g., 'Love the material!'" required></textarea>
+            </div>
+            <button type="submit">Submit Details</button>
+        </form>
+    </div>
+</body>
+</html>

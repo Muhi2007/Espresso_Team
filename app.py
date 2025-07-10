@@ -7,6 +7,7 @@ import re
 from werkzeug.security import generate_password_hash, check_password_hash
 from filelock import FileLock
 from PIL import Image
+from io import BytesIO 
 
 # Import your custom modules
 from model.shirt_db_utils import (
@@ -93,6 +94,9 @@ def logout():
     session.pop('email', None)
     session.pop('suggested_paths', None)
     session.pop('cloth_path', None)
+    session.pop('new_item_to_detail', None) 
+    # Also clear 'image_embedding_temp' if it was stored
+    session.pop('image_embedding_temp', None) 
     flash('You have been logged out.', 'success')
     return redirect(url_for('index'))
 
@@ -113,12 +117,16 @@ def get_suggestions():
     input_type = request.form.get("input_type")
     category = request.form.get("category")
     style = request.form.get("style")
-    print(style)
     count = int(request.form.get("count", 3))
     
-    suggested_items_paths = []
-    cloth_path = None
     data = load_shirts()
+    
+    # Store parameters for redirection after details are added
+    session['redirect_params_after_details'] = {
+        "category": category,
+        "style": style,
+        "count": count
+    }
 
     if input_type == "link":
         url = request.form.get("image_url")
@@ -127,31 +135,75 @@ def get_suggestions():
             return redirect(url_for('dashboard'))
 
         extracted = extract_image_url_from_temulink(url)
-        if not extracted: return "❌ Could not extract image URL from link.", 400
+        if not extracted: 
+            flash("Could not extract image URL from link.", "error")
+            return redirect(url_for('dashboard'))
         
         image = get_image_from_url(extracted)
-        if not image: return "❌ Failed to download image.", 400
+        if not image: 
+            flash("Failed to download image.", "error")
+            return redirect(url_for('dashboard'))
 
         if not os.path.exists(app.config["UPLOAD_FOLDER"]): 
             os.makedirs(app.config["UPLOAD_FOLDER"])
 
         img_name = extracted.split('/')[-1].split('?')[0]
-        img_path = os.path.join(app.config["UPLOAD_FOLDER"], img_name)
-        print(img_path)
+        base_name, ext = os.path.splitext(img_name)
+        counter = 1
+        final_img_name = img_name
+        while os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], final_img_name)):
+            final_img_name = f"{base_name}_{counter}{ext}"
+            counter += 1
 
-        if not os.path.exists(img_path):
+        img_path_on_disk = os.path.join(app.config["UPLOAD_FOLDER"], final_img_name)
+        
+        is_existing_item = False
+        existing_item_path = None
+        for path, details in data.items():
+            if details.get('link') == url: # Check by link if it's a Temu link already in DB
+                is_existing_item = True
+                existing_item_path = path
+                break
+        
+        # If it's not an existing item based on link, check if a file with this name already exists
+        # This prevents re-analyzing and re-saving if the *exact same* file was uploaded previously by path
+        if not is_existing_item and img_path_on_disk in data:
+            is_existing_item = True
+            existing_item_path = img_path_on_disk
+
+
+        if not is_existing_item:
+            # Save the image to disk immediately
+            image.save(img_path_on_disk)
+
             clothing_type = classify_image_with_clip(image, types_lst)
             clothing_color = classify_image_with_clip(image, all_data["colors"], clothing_type)
             clothing_mat = classify_image_with_clip(image, all_data["materials"], clothing_type)
-            image_embedding = get_image_embedding_pil(image)
-            if any(v is None for v in [clothing_type, clothing_color, clothing_mat, image_embedding]):
-                return "❌ AI classification failed.", 500
+            # Generate embedding here and store it temporarily in session if needed for `add_shirt_details`
+            # OR re-calculate it in add_shirt_details based on the saved image.
+            # Given the error, we will RE-CALCULATE it in add_shirt_details.
             
-            update_shirt(img_path, clothing_type, clothing_color, clothing_mat, url, image_embedding.squeeze().tolist(), image)
-            data = load_shirts()
-        
-        cloth_path = img_path
-        suggested_items_paths = suggest_complementary_items(cloth_path, count, category, style)
+            if any(v is None for v in [clothing_type, clothing_color, clothing_mat]): # Embedding not classified here
+                # If classification fails, delete the saved image to avoid clutter
+                if os.path.exists(img_path_on_disk):
+                    os.remove(img_path_on_disk)
+                flash("AI classification failed.", "error")
+                return redirect(url_for('dashboard'))
+            
+            # Store only lightweight metadata in session
+            session['new_item_to_detail'] = {
+                "name": img_path_on_disk, 
+                "type": clothing_type,
+                "color": clothing_color,
+                "material": clothing_mat,
+                "link": url
+            }
+            return redirect(url_for('ask_for_details')) 
+
+        else: # Item already exists
+            session['cloth_path'] = existing_item_path
+            suggested_items_paths = suggest_complementary_items(existing_item_path, count, category, style)
+            session['suggested_paths'] = suggested_items_paths 
 
     elif input_type == "image":
         file = request.files.get('image_file')
@@ -159,15 +211,45 @@ def get_suggestions():
             flash("Please upload an image file.", "error")
             return redirect(url_for('dashboard'))
             
-        image = Image.open(file.stream).convert("RGB")
-        image_embedding = get_image_embedding_pil(image)
-        matched_item_path = find_most_similar_image(image_embedding, data)
+        image_stream_for_pil = BytesIO(file.read())
+        image = Image.open(image_stream_for_pil).convert("RGB")
         
-        if not matched_item_path:
-            return "❌ Could not find a similar item in the database.", 404
+        # Even for existing image check, we avoid storing embedding in session
+        image_embedding_for_search = get_image_embedding_pil(image) # Temporarily get embedding for search
+        matched_item_path = None
+        if image_embedding_for_search is not None:
+            matched_item_path = find_most_similar_image(image_embedding_for_search, data)
+        
+        if not matched_item_path: # New image, not found in DB
+            clothing_type = classify_image_with_clip(image, types_lst)
+            clothing_color = classify_image_with_clip(image, all_data["colors"], clothing_type)
+            clothing_mat = classify_image_with_clip(image, all_data["materials"], clothing_type)
+            
+            if any(v is None for v in [clothing_type, clothing_color, clothing_mat]):
+                flash("AI classification failed.", "error")
+                return redirect(url_for('dashboard'))
 
-        cloth_path = matched_item_path
-        suggested_items_paths = suggest_complementary_items(cloth_path, count, category, style)
+            # Generate a unique name for the new image and save it immediately
+            original_filename = file.filename
+            base_name, ext = os.path.splitext(original_filename)
+            unique_filename = f"uploaded_{rd.randint(10000, 99999)}_{base_name}{ext}"
+            img_path_on_disk = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
+            image.save(img_path_on_disk) # Save the image to disk
+            
+            # Store only lightweight metadata in session
+            session['new_item_to_detail'] = {
+                "name": img_path_on_disk,
+                "type": clothing_type,
+                "color": clothing_color,
+                "material": clothing_mat,
+                "link": "" 
+            }
+            return redirect(url_for('ask_for_details')) 
+
+        else: # Image already exists in DB
+            session['cloth_path'] = matched_item_path
+            suggested_items_paths = suggest_complementary_items(matched_item_path, count, category, style)
+            session['suggested_paths'] = suggested_items_paths 
 
     elif input_type == "prompt":
         prompt_text = request.form.get("prompt_text")
@@ -176,13 +258,106 @@ def get_suggestions():
             return redirect(url_for('dashboard'))
         
         suggested_items_paths = suggest_items_from_prompt(prompt_text, count, category, data)
-        session['prompt_text'] = prompt_text # Store prompt text for display
+        session['prompt_text'] = prompt_text 
+        session['suggested_paths'] = suggested_items_paths 
+        session['cloth_path'] = None 
 
-    # Store only identifiers in the session
-    session['suggested_paths'] = suggested_items_paths
-    session['cloth_path'] = cloth_path
+    return render_template_results()
+
+
+@app.route("/ask_for_details", methods=["GET"])
+def ask_for_details():
+    """Renders a popup to ask for comment and rating for a new item."""
+    if 'email' not in session:
+        return redirect(url_for('index'))
+    if 'new_item_to_detail' not in session:
+        flash("No new item to add details for.", "error")
+        return redirect(url_for('dashboard'))
+
+    new_item_info = session['new_item_to_detail']
+    return render_template("add_details_popup.html", item_path=make_html_url(new_item_info['name']))
+
+@app.route("/add_shirt_details", methods=["POST"])
+def add_shirt_details():
+    """Receives rating and comment, then saves the new shirt and redirects to results."""
+    if 'email' not in session:
+        return redirect(url_for('index'))
+    if 'new_item_to_detail' not in session:
+        flash("No new item details found for saving.", "error")
+        return redirect(url_for('dashboard'))
+
+    rating = request.form.get("rating")
+    comment = request.form.get("comment")
+
+    if not rating or not comment:
+        flash("Rating and comment are required.", "error")
+        return redirect(url_for('ask_for_details'))
+    try:
+        rating = float(rating)
+        if not (0.0 <= rating <= 5.0):
+            flash("Rating must be between 0.0 and 5.0.", "error")
+            return redirect(url_for('ask_for_details'))
+    except ValueError:
+        flash("Invalid rating format. Please enter a number.", "error")
+        return redirect(url_for('ask_for_details'))
+
+    new_item_details = session.pop('new_item_to_detail') 
+    redirect_params = session.pop('redirect_params_after_details') 
+
+    img_path_on_disk = new_item_details['name']
+
+    # --- RE-OPEN IMAGE AND GENERATE EMBEDDING HERE ---
+    try:
+        # Open the image from the disk where it was just saved
+        image_from_disk = Image.open(img_path_on_disk).convert("RGB")
+        image_embedding = get_image_embedding_pil(image_from_disk)
+        if image_embedding is None:
+            # If embedding generation fails, remove the item and flash error
+            if os.path.exists(img_path_on_disk):
+                os.remove(img_path_on_disk)
+            flash("Failed to generate image embedding for the item.", "error")
+            return redirect(url_for('dashboard'))
+    except Exception as e:
+        # Handle cases where image file might be corrupted or unreadable
+        if os.path.exists(img_path_on_disk):
+            os.remove(img_path_on_disk)
+        flash(f"Error processing image from disk: {e}", "error")
+        return redirect(url_for('dashboard'))
+    # --------------------------------------------------
+
+    update_shirt(
+        name=img_path_on_disk,
+        new_type=new_item_details['type'],
+        new_color=new_item_details['color'],
+        new_material=new_item_details['material'],
+        new_link=new_item_details['link'],
+        new_embedding=image_embedding.squeeze().tolist(), # Pass the newly generated embedding
+        image=None, 
+        rating=rating,
+        comment=comment
+    )
+
+    data = load_shirts()
+    suggested_items_paths = suggest_complementary_items(
+        img_path_on_disk, 
+        redirect_params['count'], 
+        redirect_params['category'], 
+        redirect_params['style']
+    )
     
-    # Now, build the results and cloth objects for rendering
+    session['suggested_paths'] = suggested_items_paths
+    session['cloth_path'] = img_path_on_disk 
+
+    return render_template_results()
+
+
+# Helper function to avoid code duplication for rendering results
+def render_template_results():
+    data = load_shirts()
+    suggested_items_paths = session.get('suggested_paths', [])
+    cloth_path = session.get('cloth_path')
+    prompt_text = session.get('prompt_text')
+
     results = []
     for item_path in suggested_items_paths:
         item_details = data.get(item_path, {})
@@ -191,20 +366,22 @@ def get_suggestions():
                 "name": f"{item_details.get('color')} {item_details.get('material')} {item_details.get('type')}",
                 "image": make_html_url(item_path),
                 "link": item_details.get("link"),
-                "price": rd.randint(10, 100),
-                "rating": round(rd.uniform(1.0, 5.0), 1),
-                "comment": rd.choice(all_data["comments"])
+                "rating": item_details.get("rating", round(rd.uniform(1.0, 5.0), 1)),
+                "comment": item_details.get("comment", rd.choice(all_data["comments"]))
             })
 
     cloth = None
     if cloth_path:
-        print(cloth_path)
-        cloth_details = data[cloth_path]
-        cloth = {**cloth_details, "image": make_html_url(cloth_path), "price": rd.randint(10, 100), "rating": round(rd.uniform(2,5), 1), "name": f"{cloth_details['color']} {cloth_details['material']} {cloth_details['type']}"}
-    elif 'prompt_text' in session:
-        cloth = {"name": f"Suggestions for: '{session.get('prompt_text')}'", "image": None, "link": "#"}
-
-
+        cloth_details = data.get(cloth_path, {})
+        cloth = {
+            **cloth_details, 
+            "image": make_html_url(cloth_path), 
+            "rating": cloth_details.get("rating", round(rd.uniform(2,5), 1)), 
+            "name": f"{cloth_details.get('color', '')} {cloth_details.get('material', '')} {cloth_details.get('type', '')}"
+        }
+    elif prompt_text:
+        cloth = {"name": f"Suggestions for: '{prompt_text}'", "image": None, "link": "#"}
+    
     return render_template("result.html", item=cloth, results=results)
 
 
@@ -218,9 +395,9 @@ def filter_results():
     
     suggested_paths = session.get("suggested_paths", [])
     cloth_path = session.get("cloth_path")
+    prompt_text = session.get("prompt_text") 
     data = load_shirts()
 
-    # Re-build the full results list from the database
     full_results = []
     for item_path in suggested_paths:
         item_details = data.get(item_path, {})
@@ -229,21 +406,23 @@ def filter_results():
                 "name": f"{item_details.get('color')} {item_details.get('material')} {item_details.get('type')}",
                 "image": make_html_url(item_path),
                 "link": item_details.get("link"),
-                "price": rd.randint(10, 100), # Note: Price and rating will be random again on filter
-                "rating": round(rd.uniform(1.0, 5.0), 1),
-                "comment": rd.choice(all_data["comments"])
+                "rating": item_details.get("rating", round(rd.uniform(1.0, 5.0), 1)),
+                "comment": item_details.get("comment", rd.choice(all_data["comments"]))
             })
 
-    # Apply filters
-    filtered_results = [item for item in full_results if float(item.get("price", 0)) <= max_price and float(item.get("rating", 0)) >= min_rating]
+    filtered_results = [item for item in full_results if float(item.get("rating", 0)) >= min_rating]
     
-    # Re-build the cloth object for rendering
     cloth = None
     if cloth_path:
-        cloth_details = data[cloth_path]
-        cloth = {**cloth_details, "image": make_html_url(cloth_path), "price": rd.randint(10, 100), "rating": round(rd.uniform(2,5), 1), "name": f"{cloth_details['color']} {cloth_details['material']} {cloth_details['type']}"}
-    elif 'prompt_text' in session:
-         cloth = {"name": f"Suggestions for: '{session.get('prompt_text')}'", "image": None, "link": "#"}
+        cloth_details = data.get(cloth_path, {})
+        cloth = {
+            **cloth_details, 
+            "image": make_html_url(cloth_path), 
+            "rating": cloth_details.get("rating", round(rd.uniform(2,5), 1)), 
+            "name": f"{cloth_details.get('color', '')} {cloth_details.get('material', '')} {cloth_details.get('type', '')}"
+        }
+    elif prompt_text: 
+         cloth = {"name": f"Suggestions for: '{prompt_text}'", "image": None, "link": "#"}
 
     return render_template("result.html", item=cloth, results=filtered_results)
 
