@@ -31,7 +31,6 @@ from model.clip_utils import (
 app = Flask(__name__)
 Upload_folder = "static\\uploads"
 app.config["UPLOAD_FOLDER"] = Upload_folder
-app.secret_key = '6673a00bb4e05d3fb2f622c44fdfa54d81e658610b92f80cb17f24c5fa45eeed'
 
 EMAIL_REGEX = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
 
